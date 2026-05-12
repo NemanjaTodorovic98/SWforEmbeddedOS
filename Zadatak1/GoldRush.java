@@ -1,12 +1,19 @@
+import java.io.*;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class GoldRush
 {
     private FortyNiner fortyNiner;
+    private File savedGame;
+    private int startWeek;
 
     public GoldRush()
     {
         this.fortyNiner = null;
+
+        this.savedGame = new File("Zadatak1\\savedGame.txt");
+        this.startWeek = 1;
     }
 
     public void survive()
@@ -19,10 +26,18 @@ public class GoldRush
         Scanner sc = new Scanner(System.in);
 
         int week;
-        for (week = 1; week <= 20; week++)
+        for (week = startWeek; week <= 20; week++)
         {
             System.out.println("==================");
             System.out.println("Sedmica " + week);
+
+            fortyNiner.itIsSundayAgain(sc);
+
+            System.out.println("Koliko novih Cradle?");
+
+            int cradlesToBuy = sc.nextInt();
+            sc.nextLine();
+            fortyNiner.buyCradles(cradlesToBuy);
 
             fortyNiner.useTools();
             fortyNiner.buyFood();
@@ -32,24 +47,143 @@ public class GoldRush
             String stop = sc.nextLine();
             if (stop.equalsIgnoreCase("da"))
             {
-                System.out.println("Igra je prekinuta.");
-                break;
-            }
-
-            if (week < 20)
-            {
-                fortyNiner.itIsSundayAgain(sc);
-
-                System.out.println("Koliko Cradle zelis da kupis ove nedelje?");
-                int cradlesToBuy = sc.nextInt();
-                sc.nextLine();
-                fortyNiner.buyCradles(cradlesToBuy);
+                saveGame(week);
+                System.out.println("Sacuvan trenutni progres.");
+                return;
             }
 
             System.out.println("Kraj sedmice " + week + ". Novac: $" + fortyNiner.getMoney() + ", endurance: " + fortyNiner.getEndurance() + "%.");
         }
 
         System.out.println("==============================");
-        System.out.println("Kraj igre, novac: $" + fortyNiner.getMoney());
+        System.out.println("Kraj igre, prikupljn novac: $" + fortyNiner.getMoney());
+    }
+
+    public void loadGame()
+    {
+        if (!savedGame.exists())
+        {
+            return;
+        }
+
+        try
+        {
+            BufferedReader reader = new BufferedReader(new FileReader(savedGame));
+
+            String line = reader.readLine();
+
+            int savedWeek = extractNumber(line);
+
+            line = reader.readLine();
+            int endurance = extractNumber(line);
+
+            line = reader.readLine();
+            int money = extractNumber(line);
+
+            line = reader.readLine();
+            int sluiceDurability = extractNumber(line);
+
+            ArrayList<Tool> loadedTools = new ArrayList<Tool>();
+            loadedTools.add(new Pan());
+            loadedTools.add(new Sluice(sluiceDurability));
+
+            while ((line = reader.readLine()) != null)
+            {
+                if (line.trim().length() == 0)
+                {
+                    continue;
+                }
+
+                int cradleDurability = extractNumber(line);
+                loadedTools.add(new Cradle(cradleDurability));
+            }
+
+            reader.close();
+
+            fortyNiner = new FortyNiner(endurance, money);
+            fortyNiner.setTools(loadedTools);
+            startWeek = savedWeek + 1;
+
+            if (startWeek > 20)
+            {
+                startWeek = 21;
+            }
+
+            System.out.println("Ucitana je prethodno sacuvana igra. Nastavak od sedmice " + startWeek + ".");
+        }
+        catch (IOException ex)
+        {
+            System.out.println("Greska pri ucitavanju igre: " + ex.getMessage());
+        }
+    }
+
+    private void saveGame(int week)
+    {
+        try
+        {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(savedGame));
+
+            writer.write("Week no. " + week);
+            writer.newLine();
+            writer.write("49er endurance: " + fortyNiner.getEndurance() + "%");
+            writer.newLine();
+            writer.write("49er money: $" + fortyNiner.getMoney());
+            writer.newLine();
+            writer.write("Sluice durability: " + getSluiceDurability() + "%");
+            writer.newLine();
+
+            ArrayList<Tool> tools = fortyNiner.getTools();
+            for (int i = 0; i < tools.size(); i++)
+            {
+                Tool tool = tools.get(i);
+
+                
+                if (tool instanceof Cradle)
+                {
+                    writer.write("Cradle durability: " + tool.getDurability() + "%");
+                    writer.newLine();
+                }
+            }
+
+            writer.close();
+        }
+        catch (IOException ex)
+        {
+            System.out.println("Nije moguce sacuvati igru. " + ex.getMessage());
+        }
+    }
+
+    private int getSluiceDurability()
+    {
+        ArrayList<Tool> tools = fortyNiner.getTools();
+        for (int i = 0; i < tools.size(); i++)
+        {
+            Tool tool = tools.get(i);
+
+            if (tool instanceof Sluice)
+            {
+                return tool.getDurability();
+            }
+        }
+
+        return 0;
+    }
+
+    private int extractNumber(String line)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < line.length(); i++)
+        {
+            char c = line.charAt(i);
+
+            if (c >= '0' && c <= '9')
+            {
+                sb.append(c);
+            }
+        }
+
+
+        return Integer.parseInt(sb.toString());
     }
 }
