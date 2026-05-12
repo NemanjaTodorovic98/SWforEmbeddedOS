@@ -108,31 +108,50 @@ public class FortyNiner
 
     public void itIsSundayAgain(Scanner sc)
     {
-        System.out.println("Izaberi opciju:");
-        System.out.println("1 - Ne radi nista");
-        System.out.println("2 - Popravi Sluice ($100)");
-        System.out.println("3 - Idi u saloon");
+        boolean validChoice = false;
 
-        int choice = sc.nextInt();
-
-        sc.nextLine();
-
-        switch (choice)
+        while (!validChoice)
         {
-            case 2:
+            System.out.println("Izaberi opciju:");
+            System.out.println("1 - Ne radi nista");
+            System.out.println("2 - Popravi Sluice ($100)");
+            System.out.println("3 - Idi u saloon");
+
+            if (!sc.hasNextInt())
             {
-                fixSluice();
-                break;
+                System.out.println("Neispravan unos. Unesi broj 1, 2 ili 3.");
+                sc.nextLine();
+                continue;
             }
-            case 3:
+
+            int choice = sc.nextInt();
+            sc.nextLine();
+
+            switch (choice)
             {
-                goToSaloon();
-                break;
-            }
-            default:
-            {
-                System.out.println("Nisi radio nista ove nedelje.");
-                break;
+                case 1:
+                {
+                    System.out.println("Nisi radio nista ove nedelje.");
+                    validChoice = true;
+                    break;
+                }
+                case 2:
+                {
+                    fixSluice();
+                    validChoice = true;
+                    break;
+                }
+                case 3:
+                {
+                    goToSaloon();
+                    validChoice = true;
+                    break;
+                }
+                default:
+                {
+                    System.out.println("Neispravan izbor. Unesi 1, 2 ili 3.");
+                    break;
+                }
             }
         }
     }
