@@ -158,6 +158,12 @@ public class FortyNiner
 
     public void buyCradles(int count)
     {
+        if (count <= 0)
+        {
+            System.out.println("uneti broj mora biti veci od 0");
+            return;
+        }
+
         int canAfford = money / 30;
 
         if (canAfford == 0)

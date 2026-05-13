@@ -35,8 +35,7 @@ public class GoldRush
 
             System.out.println("Koliko novih Cradle?");
 
-            int cradlesToBuy = sc.nextInt();
-            sc.nextLine();
+            int cradlesToBuy = readNonNegativeInt(sc);
             fortyNiner.buyCradles(cradlesToBuy);
 
             fortyNiner.useTools();
@@ -53,6 +52,11 @@ public class GoldRush
             }
 
             System.out.println("Kraj sedmice " + week + ". Novac: $" + fortyNiner.getMoney() + ", endurance: " + fortyNiner.getEndurance() + "%.");
+        }
+
+        if (savedGame.exists())
+        {
+            savedGame.delete();
         }
 
         System.out.println("==============================");
@@ -104,9 +108,17 @@ public class GoldRush
             fortyNiner.setTools(loadedTools);
             startWeek = savedWeek + 1;
 
-            if (startWeek > 20)
+            if (savedWeek >= 20)
             {
-                startWeek = 21;
+                if (savedGame.exists())
+                {
+                    savedGame.delete();
+                }
+
+                fortyNiner = null;
+                startWeek = 1;
+                System.out.println("pokrece se nova igra.");
+                return;
             }
 
             System.out.println("Ucitana je prethodno sacuvana igra. Nastavak od sedmice " + startWeek + ".");
@@ -171,6 +183,11 @@ public class GoldRush
 
     private int extractNumber(String line)
     {
+        if (line.indexOf(':') >= 0)
+        {
+            line = line.substring(line.indexOf(':') + 1);
+        }
+
         StringBuilder sb = new StringBuilder();
 
         for (int i = 0; i < line.length(); i++)
@@ -185,5 +202,28 @@ public class GoldRush
 
 
         return Integer.parseInt(sb.toString());
+    }
+
+    private int readNonNegativeInt(Scanner sc)
+    {
+        while (true)
+        {
+            System.out.println("Unesite broj.");
+            if (!sc.hasNextInt())
+            {
+                sc.nextLine();
+                continue;
+            }
+
+            int value = sc.nextInt();
+            sc.nextLine();
+
+            if (value < 0)
+            {
+                continue;
+            }
+
+            return value;
+        }
     }
 }
