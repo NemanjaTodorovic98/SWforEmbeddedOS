@@ -7,10 +7,11 @@ import javax.swing.*;
 public class ExchangeClientFrame extends JFrame
 {
     private JTextField usernameField;
-    private JTextArea dupArea;
-    private JTextArea missingArea;
     private JTextArea logArea;
     private JButton registerButton;
+    private JButton updateButton;
+    private JCheckBox[] duplicateChecks;
+    private JCheckBox[] missingChecks;
 
     private Socket socket;
     private BufferedReader reader;
@@ -33,22 +34,35 @@ public class ExchangeClientFrame extends JFrame
         registerButton = new JButton("Register");
         top.add(registerButton);
 
+        updateButton = new JButton("Update");
+        updateButton.setEnabled(false);
+        top.add(updateButton);
+
         add(top, BorderLayout.NORTH);
 
         JPanel center = new JPanel(new GridLayout(1, 2));
+        duplicateChecks = new JCheckBox[99];
+        missingChecks = new JCheckBox[99];
 
-        dupArea = new JTextArea();
-        dupArea.setEditable(false);
-        missingArea = new JTextArea();
-        missingArea.setEditable(false);
+        JPanel dupGrid = new JPanel(new GridLayout(0, 3));
+        JPanel missingGrid = new JPanel(new GridLayout(0, 3));
+
+        int i;
+        for (i = 1; i <= 99; i++)
+        {
+            duplicateChecks[i - 1] = new JCheckBox(String.valueOf(i));
+            missingChecks[i - 1] = new JCheckBox(String.valueOf(i));
+            dupGrid.add(duplicateChecks[i - 1]);
+            missingGrid.add(missingChecks[i - 1]);
+        }
 
         JPanel left = new JPanel(new BorderLayout());
         left.add(new JLabel("Duplikati"), BorderLayout.NORTH);
-        left.add(new JScrollPane(dupArea), BorderLayout.CENTER);
+        left.add(new JScrollPane(dupGrid), BorderLayout.CENTER);
 
         JPanel right = new JPanel(new BorderLayout());
         right.add(new JLabel("Nedostaju"), BorderLayout.NORTH);
-        right.add(new JScrollPane(missingArea), BorderLayout.CENTER);
+        right.add(new JScrollPane(missingGrid), BorderLayout.CENTER);
 
         center.add(left);
         center.add(right);
@@ -60,6 +74,7 @@ public class ExchangeClientFrame extends JFrame
         add(new JScrollPane(logArea), BorderLayout.SOUTH);
 
         registerButton.addActionListener(e -> register());
+        updateButton.addActionListener(e -> updateLists());
     }
 
     private void register()
@@ -73,8 +88,7 @@ public class ExchangeClientFrame extends JFrame
         }
 
         localUser = new StickerUser(username);
-        dupArea.setText(toCsv(localUser.getDuplicates()));
-        missingArea.setText(toCsv(localUser.getMissing()));
+        updateChecksFromLocalUser();
 
         try
         {
@@ -96,11 +110,104 @@ public class ExchangeClientFrame extends JFrame
             if (resp != null)
             {
                 logArea.append(resp + "\n");
+
+                if (resp.startsWith("REGISTER_OK"))
+                {
+                    updateButton.setEnabled(true);
+                }
             }
         }
         catch (Exception ex)
         {
             logArea.append("Problem pri povezivanju na server\n");
+        }
+    }
+
+    private void updateLists()
+    {
+        if (localUser == null)
+        {
+            logArea.append("Prvo se registrujte.\n");
+            return;
+        }
+
+        localUser.getDuplicates().clear();
+        localUser.getMissing().clear();
+
+        int i;
+        for (i = 1; i <= 99; i++)
+        {
+            boolean dupSelected = duplicateChecks[i - 1].isSelected();
+            boolean missSelected = missingChecks[i - 1].isSelected();
+
+            if (dupSelected && missSelected)
+            {
+                logArea.append("Slicica " + i + " ne moze biti i duplikat i nedostajuca.\n");
+                return;
+            }
+
+            if (dupSelected)
+            {
+                localUser.addDuplicate(i);
+            }
+
+            if (missSelected)
+            {
+                localUser.addMissing(i);
+            }
+        }
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            String msg = "UPDATE|" + localUser.getUsername() + "|" + toCsv(localUser.getDuplicates()) + "|" + toCsv(localUser.getMissing());
+            writer.println(msg);
+            String resp = reader.readLine();
+
+            if (resp != null)
+            {
+                logArea.append(resp + "\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri slanju update poruke.\n");
+        }
+    }
+
+    private void updateChecksFromLocalUser()
+    {
+        int i;
+        for (i = 0; i < 99; i++)
+        {
+            duplicateChecks[i].setSelected(false);
+            missingChecks[i].setSelected(false);
+        }
+
+        ArrayList<Integer> duplicates = localUser.getDuplicates();
+        ArrayList<Integer> missing = localUser.getMissing();
+
+        for (i = 0; i < duplicates.size(); i++)
+        {
+            int value = duplicates.get(i);
+            if (value >= 1 && value <= 99)
+            {
+                duplicateChecks[value - 1].setSelected(true);
+            }
+        }
+
+        for (i = 0; i < missing.size(); i++)
+        {
+            int value = missing.get(i);
+            if (value >= 1 && value <= 99)
+            {
+                missingChecks[value - 1].setSelected(true);
+            }
         }
     }
 
