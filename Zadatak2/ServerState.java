@@ -84,4 +84,21 @@ public class ServerState
     {
         return activeUsers.get(username);
     }
+
+    public synchronized ArrayList<StickerUser> getOtherUsersSnapshot(String username)
+    {
+        ArrayList<StickerUser> users = new ArrayList<StickerUser>();
+
+        for (StickerUser user : activeUsers.values())
+        {
+            if (username != null && username.equals(user.getUsername()))
+            {
+                continue;
+            }
+
+            users.add(new StickerUser(user.getUsername(), user.getDuplicates(), user.getMissing()));
+        }
+
+        return users;
+    }
 }

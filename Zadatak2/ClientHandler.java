@@ -4,6 +4,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class ClientHandler implements Runnable
 {
@@ -52,6 +53,10 @@ public class ClientHandler implements Runnable
                 else if (command.equalsIgnoreCase("UPDATE"))
                 {
                     writer.println(handleUpdate(parts, registeredUsername));
+                }
+                else if (command.equalsIgnoreCase("GET_POSSIBLE_EXCHANGES"))
+                {
+                    writer.println(handleGetPossibleExchanges(registeredUsername));
                 }
                 else if (command.equalsIgnoreCase("QUIT"))
                 {
@@ -117,9 +122,9 @@ public class ClientHandler implements Runnable
 
     private String handleUpdate(String[] parts, String registeredUsername)
     {
-        if (parts.length != 3)
+        if (parts.length != 4)
         {
-            return "ERROR|Format UPDATE|dups|missing";
+            return "ERROR|Format UPDATE|username|dups|missing";
         }
 
         if (registeredUsername == null)
@@ -127,8 +132,15 @@ public class ClientHandler implements Runnable
             return "ERROR|Prvo uradi REGISTER";
         }
 
-        ArrayList<Integer> duplicates = parseList(parts[1]);
-        ArrayList<Integer> missing = parseList(parts[2]);
+        String username = parts[1].trim();
+
+        if (!registeredUsername.equals(username))
+        {
+            return "ERROR|Mozete menjati samo svoj nalog";
+        }
+
+        ArrayList<Integer> duplicates = parseList(parts[2]);
+        ArrayList<Integer> missing = parseList(parts[3]);
 
         if (duplicates == null || missing == null)
         {
@@ -148,6 +160,54 @@ public class ClientHandler implements Runnable
         }
 
         return "UPDATE_FAIL|Korisnik nije registrovan";
+    }
+
+    private String handleGetPossibleExchanges(String registeredUsername)
+    {
+        if (registeredUsername == null)
+        {
+            return "ERROR|Prvo uradi REGISTER";
+        }
+
+        StickerUser me = serverState.getUser(registeredUsername);
+        if (me == null)
+        {
+            return "ERROR|Korisnik nije registrovan";
+        }
+
+        ArrayList<StickerUser> others = serverState.getOtherUsersSnapshot(registeredUsername);
+        PossibleExchangeService service = new PossibleExchangeService();
+        ArrayList<String> entries = new ArrayList<String>();
+
+        int i;
+        for (i = 0; i < others.size(); i++)
+        {
+            StickerUser other = others.get(i);
+
+            PossibleExchange exchange = service.calculate(
+                me.getUsername(),
+                other.getUsername(),
+                me.getDuplicates(),
+                me.getMissing(),
+                other.getDuplicates(),
+                other.getMissing());
+
+            if (exchange.hasExchange())
+            {
+                String item = other.getUsername()
+                    + "#YOU_GIVE=" + toCsv(exchange.getFirstHasForSecond())
+                    + "#YOU_GET=" + toCsv(exchange.getSecondHasForFirst());
+                entries.add(item);
+            }
+        }
+
+        if (entries.size() == 0)
+        {
+            return "POSSIBLE_EXCHANGES|NONE";
+        }
+
+        Collections.sort(entries);
+        return "POSSIBLE_EXCHANGES|" + joinWithSemicolon(entries);
     }
 
     private String extractUsernameFromOk(String registerOkMessage)
@@ -221,5 +281,41 @@ public class ClientHandler implements Runnable
         }
 
         return false;
+    }
+
+    private String toCsv(ArrayList<Integer> list)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        int i;
+        for (i = 0; i < list.size(); i++)
+        {
+            sb.append(list.get(i));
+
+            if (i < list.size() - 1)
+            {
+                sb.append(",");
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private String joinWithSemicolon(ArrayList<String> list)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        int i;
+        for (i = 0; i < list.size(); i++)
+        {
+            sb.append(list.get(i));
+
+            if (i < list.size() - 1)
+            {
+                sb.append(";");
+            }
+        }
+
+        return sb.toString();
     }
 }

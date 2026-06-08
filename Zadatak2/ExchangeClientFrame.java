@@ -8,8 +8,10 @@ public class ExchangeClientFrame extends JFrame
 {
     private JTextField usernameField;
     private JTextArea logArea;
+    private JTextArea exchangesArea;
     private JButton registerButton;
     private JButton updateButton;
+    private JButton findExchangesButton;
     private JCheckBox[] duplicateChecks;
     private JCheckBox[] missingChecks;
 
@@ -38,9 +40,13 @@ public class ExchangeClientFrame extends JFrame
         updateButton.setEnabled(false);
         top.add(updateButton);
 
+        findExchangesButton = new JButton("Nadji razmene");
+        findExchangesButton.setEnabled(false);
+        top.add(findExchangesButton);
+
         add(top, BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new GridLayout(1, 2));
+        JPanel center = new JPanel(new GridLayout(1, 3));
         duplicateChecks = new JCheckBox[99];
         missingChecks = new JCheckBox[99];
 
@@ -67,6 +73,13 @@ public class ExchangeClientFrame extends JFrame
         center.add(left);
         center.add(right);
 
+        exchangesArea = new JTextArea();
+        exchangesArea.setEditable(false);
+        JPanel exchangePanel = new JPanel(new BorderLayout());
+        exchangePanel.add(new JLabel("Moguce razmene"), BorderLayout.NORTH);
+        exchangePanel.add(new JScrollPane(exchangesArea), BorderLayout.CENTER);
+        center.add(exchangePanel);
+
         add(center, BorderLayout.CENTER);
 
         logArea = new JTextArea();
@@ -75,6 +88,7 @@ public class ExchangeClientFrame extends JFrame
 
         registerButton.addActionListener(e -> register());
         updateButton.addActionListener(e -> updateLists());
+    findExchangesButton.addActionListener(e -> loadPossibleExchanges());
     }
 
     private void register()
@@ -114,6 +128,7 @@ public class ExchangeClientFrame extends JFrame
                 if (resp.startsWith("REGISTER_OK"))
                 {
                     updateButton.setEnabled(true);
+                    findExchangesButton.setEnabled(true);
                 }
             }
         }
@@ -177,6 +192,74 @@ public class ExchangeClientFrame extends JFrame
         catch (Exception ex)
         {
             logArea.append("Problem pri slanju update poruke.\n");
+        }
+    }
+
+    private void loadPossibleExchanges()
+    {
+        if (localUser == null)
+        {
+            logArea.append("Prvo se registrujte.\n");
+            return;
+        }
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            writer.println("GET_POSSIBLE_EXCHANGES");
+            String resp = reader.readLine();
+
+            if (resp == null)
+            {
+                logArea.append("Nema odgovora servera.\n");
+                return;
+            }
+
+            if (resp.startsWith("POSSIBLE_EXCHANGES|"))
+            {
+                fillExchangesArea(resp);
+            }
+            else
+            {
+                logArea.append(resp + "\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri trazenju razmena.\n");
+        }
+    }
+
+    private void fillExchangesArea(String response)
+    {
+        exchangesArea.setText("");
+
+        String payload = response.substring("POSSIBLE_EXCHANGES|".length());
+
+        if (payload.equals("NONE"))
+        {
+            exchangesArea.setText("Trenutno nema mogucih razmena.");
+            return;
+        }
+
+        String[] items = payload.split(";");
+
+        int i;
+        for (i = 0; i < items.length; i++)
+        {
+            String[] parts = items[i].split("#");
+
+            if (parts.length == 3)
+            {
+                exchangesArea.append("Korisnik: " + parts[0] + "\n");
+                exchangesArea.append(parts[1].replace("YOU_GIVE=", "Ti dajes: ") + "\n");
+                exchangesArea.append(parts[2].replace("YOU_GET=", "Ti dobijas: ") + "\n\n");
+            }
         }
     }
 
