@@ -58,6 +58,22 @@ public class ClientHandler implements Runnable
                 {
                     writer.println(handleGetPossibleExchanges(registeredUsername));
                 }
+                else if (command.equalsIgnoreCase("REQUEST_EXCHANGE"))
+                {
+                    writer.println(handleRequestExchange(parts, registeredUsername));
+                }
+                else if (command.equalsIgnoreCase("GET_PENDING_REQUESTS"))
+                {
+                    writer.println(handleGetPendingRequests(registeredUsername));
+                }
+                else if (command.equalsIgnoreCase("ACCEPT_REQUEST"))
+                {
+                    writer.println(handleAcceptRequest(parts, registeredUsername));
+                }
+                else if (command.equalsIgnoreCase("REJECT_REQUEST"))
+                {
+                    writer.println(handleRejectRequest(parts, registeredUsername));
+                }
                 else if (command.equalsIgnoreCase("QUIT"))
                 {
                     writer.println("BYE");
@@ -317,5 +333,136 @@ public class ClientHandler implements Runnable
         }
 
         return sb.toString();
+    }
+
+    private String handleRequestExchange(String[] parts, String registeredUsername)
+    {
+        if (parts.length != 4)
+        {
+            return "ERROR|Format REQUEST_EXCHANGE|to_user|give_list|want_list";
+        }
+
+        if (registeredUsername == null)
+        {
+            return "ERROR|Prvo uradi REGISTER";
+        }
+
+        String toUsername = parts[1].trim();
+        ArrayList<Integer> toGive = parseList(parts[2]);
+        ArrayList<Integer> toWant = parseList(parts[3]);
+
+        if (toGive == null || toWant == null)
+        {
+            return "ERROR|Neispravan format liste";
+        }
+
+        StickerUser targetUser = serverState.getUser(toUsername);
+        if (targetUser == null)
+        {
+            return "ERROR|Korisnik nije online";
+        }
+
+        ExchangeRequest req = new ExchangeRequest(registeredUsername, toUsername, toGive, toWant);
+        serverState.addPendingRequest(req);
+
+        return "REQUEST_SENT|" + toUsername;
+    }
+
+    private String handleGetPendingRequests(String registeredUsername)
+    {
+        if (registeredUsername == null)
+        {
+            return "ERROR|Prvo uradi REGISTER";
+        }
+
+        ArrayList<ExchangeRequest> requests = serverState.getPendingRequestsFor(registeredUsername);
+
+        if (requests.size() == 0)
+        {
+            return "PENDING_REQUESTS|NONE";
+        }
+
+        ArrayList<String> entries = new ArrayList<String>();
+
+        int i;
+        for (i = 0; i < requests.size(); i++)
+        {
+            ExchangeRequest req = requests.get(i);
+            String entry = req.getFromUsername()
+                + "#GIVES=" + toCsv(req.getTickersFromGives())
+                + "#WANTS=" + toCsv(req.getTickersFromWants());
+            entries.add(entry);
+        }
+
+        return "PENDING_REQUESTS|" + joinWithSemicolon(entries);
+    }
+
+    private String handleAcceptRequest(String[] parts, String registeredUsername)
+    {
+        if (parts.length != 3)
+        {
+            return "ERROR|Format ACCEPT_REQUEST|from_user|give_back_list";
+        }
+
+        if (registeredUsername == null)
+        {
+            return "ERROR|Prvo uradi REGISTER";
+        }
+
+        String fromUsername = parts[1].trim();
+        ArrayList<Integer> toGive = parseList(parts[2]);
+
+        if (toGive == null)
+        {
+            return "ERROR|Neispravan format liste";
+        }
+
+        ExchangeRequest req = serverState.findAndRemovePendingRequest(fromUsername, registeredUsername);
+
+        if (req == null)
+        {
+            return "ERROR|Zahtev nije pronadjen";
+        }
+
+        ArrayList<Integer> fromGives = req.getTickersFromGives();
+        ArrayList<Integer> fromWants = req.getTickersFromWants();
+
+        if (fromGives.size() != toGive.size())
+        {
+            return "ERROR|Broj slicica se ne poklapa";
+        }
+
+        if (!toGive.containsAll(fromWants))
+        {
+            return "ERROR|Ne imas te slicice";
+        }
+
+        serverState.executeExchange(fromUsername, registeredUsername, fromGives, toGive);
+
+        return "EXCHANGE_OK|" + fromUsername;
+    }
+
+    private String handleRejectRequest(String[] parts, String registeredUsername)
+    {
+        if (parts.length != 2)
+        {
+            return "ERROR|Format REJECT_REQUEST|from_user";
+        }
+
+        if (registeredUsername == null)
+        {
+            return "ERROR|Prvo uradi REGISTER";
+        }
+
+        String fromUsername = parts[1].trim();
+
+        ExchangeRequest req = serverState.findAndRemovePendingRequest(fromUsername, registeredUsername);
+
+        if (req == null)
+        {
+            return "ERROR|Zahtev nije pronadjen";
+        }
+
+        return "REQUEST_REJECTED|" + fromUsername;
     }
 }

@@ -9,9 +9,12 @@ public class ExchangeClientFrame extends JFrame
     private JTextField usernameField;
     private JTextArea logArea;
     private JTextArea exchangesArea;
+    private JTextArea pendingArea;
     private JButton registerButton;
     private JButton updateButton;
     private JButton findExchangesButton;
+    private JButton requestExButton;
+    private JButton checkPendingButton;
     private JCheckBox[] duplicateChecks;
     private JCheckBox[] missingChecks;
 
@@ -44,9 +47,17 @@ public class ExchangeClientFrame extends JFrame
         findExchangesButton.setEnabled(false);
         top.add(findExchangesButton);
 
+        requestExButton = new JButton("Zahtevaj");
+        requestExButton.setEnabled(false);
+        top.add(requestExButton);
+
+        checkPendingButton = new JButton("Zahtevi");
+        checkPendingButton.setEnabled(false);
+        top.add(checkPendingButton);
+
         add(top, BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new GridLayout(1, 3));
+        JPanel center = new JPanel(new GridLayout(2, 2));
         duplicateChecks = new JCheckBox[99];
         missingChecks = new JCheckBox[99];
 
@@ -80,6 +91,13 @@ public class ExchangeClientFrame extends JFrame
         exchangePanel.add(new JScrollPane(exchangesArea), BorderLayout.CENTER);
         center.add(exchangePanel);
 
+        pendingArea = new JTextArea();
+        pendingArea.setEditable(false);
+        JPanel pendingPanel = new JPanel(new BorderLayout());
+        pendingPanel.add(new JLabel("Zahtevi"), BorderLayout.NORTH);
+        pendingPanel.add(new JScrollPane(pendingArea), BorderLayout.CENTER);
+        center.add(pendingPanel);
+
         add(center, BorderLayout.CENTER);
 
         logArea = new JTextArea();
@@ -88,7 +106,9 @@ public class ExchangeClientFrame extends JFrame
 
         registerButton.addActionListener(e -> register());
         updateButton.addActionListener(e -> updateLists());
-    findExchangesButton.addActionListener(e -> loadPossibleExchanges());
+        findExchangesButton.addActionListener(e -> loadPossibleExchanges());
+        requestExButton.addActionListener(e -> requestExchange());
+        checkPendingButton.addActionListener(e -> checkPendingRequests());
     }
 
     private void register()
@@ -129,6 +149,8 @@ public class ExchangeClientFrame extends JFrame
                 {
                     updateButton.setEnabled(true);
                     findExchangesButton.setEnabled(true);
+                    requestExButton.setEnabled(true);
+                    checkPendingButton.setEnabled(true);
                 }
             }
         }
@@ -310,5 +332,134 @@ public class ExchangeClientFrame extends JFrame
         }
 
         return sb.toString();
+    }
+
+    private void requestExchange()
+    {
+        if (localUser == null)
+        {
+            logArea.append("Prvo se registrujte.\n");
+            return;
+        }
+
+        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
+        JTextField toUserField = new JTextField("");
+        JTextField toGiveField = new JTextField("");
+        JTextField toWantField = new JTextField("");
+
+        panel.add(new JLabel("Kojem korisniku:"));
+        panel.add(toUserField);
+        panel.add(new JLabel("Dajem (csv br):"));
+        panel.add(toGiveField);
+        panel.add(new JLabel("Zelim (csv br):"));
+        panel.add(toWantField);
+
+        int result = JOptionPane.showConfirmDialog(this, panel, "Zahtevaj razmenu", JOptionPane.OK_CANCEL_OPTION);
+
+        if (result != JOptionPane.OK_OPTION)
+        {
+            return;
+        }
+
+        String toUsername = toUserField.getText().trim();
+        String giveStr = toGiveField.getText().trim();
+        String wantStr = toWantField.getText().trim();
+
+        if (toUsername.length() == 0 || giveStr.length() == 0 || wantStr.length() == 0)
+        {
+            logArea.append("Popunite sva polja.\n");
+            return;
+        }
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            String msg = "REQUEST_EXCHANGE|" + toUsername + "|" + giveStr + "|" + wantStr;
+            writer.println(msg);
+            String resp = reader.readLine();
+
+            if (resp != null)
+            {
+                logArea.append(resp + "\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri slanju zahteva.\n");
+        }
+    }
+
+    private void checkPendingRequests()
+    {
+        if (localUser == null)
+        {
+            logArea.append("Prvo se registrujte.\n");
+            return;
+        }
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            writer.println("GET_PENDING_REQUESTS");
+            String resp = reader.readLine();
+
+            if (resp == null)
+            {
+                logArea.append("Nema odgovora servera.\n");
+                return;
+            }
+
+            if (resp.startsWith("PENDING_REQUESTS|"))
+            {
+                fillPendingArea(resp);
+            }
+            else
+            {
+                logArea.append(resp + "\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri proveravanji zahteva.\n");
+        }
+    }
+
+    private void fillPendingArea(String response)
+    {
+        pendingArea.setText("");
+
+        String payload = response.substring("PENDING_REQUESTS|".length());
+
+        if (payload.equals("NONE"))
+        {
+            pendingArea.setText("Nema zahteva za razmenu.");
+            return;
+        }
+
+        String[] items = payload.split(";");
+
+        int i;
+        for (i = 0; i < items.length; i++)
+        {
+            String[] parts = items[i].split("#");
+
+            if (parts.length == 3)
+            {
+                pendingArea.append("Od: " + parts[0] + "\n");
+                pendingArea.append(parts[1].replace("GIVES=", "On/ona daje: ") + "\n");
+                pendingArea.append(parts[2].replace("WANTS=", "On/ona zeli: ") + "\n");
+                pendingArea.append("Akcija: klik dugme 'Prihvati'\n\n");
+            }
+        }
     }
 }

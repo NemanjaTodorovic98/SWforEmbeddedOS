@@ -4,10 +4,12 @@ import java.util.HashMap;
 public class ServerState
 {
     private HashMap<String, StickerUser> activeUsers;
+    private ArrayList<ExchangeRequest> pendingRequests;
 
     public ServerState()
     {
         this.activeUsers = new HashMap<String, StickerUser>();
+        this.pendingRequests = new ArrayList<ExchangeRequest>();
     }
 
     public synchronized boolean registerUser(String username, ArrayList<Integer> duplicates, ArrayList<Integer> missing)
@@ -100,5 +102,75 @@ public class ServerState
         }
 
         return users;
+    }
+
+    public synchronized void addPendingRequest(ExchangeRequest request)
+    {
+        if (request != null)
+        {
+            pendingRequests.add(request);
+        }
+    }
+
+    public synchronized ArrayList<ExchangeRequest> getPendingRequestsFor(String username)
+    {
+        ArrayList<ExchangeRequest> requests = new ArrayList<ExchangeRequest>();
+
+        int i;
+        for (i = 0; i < pendingRequests.size(); i++)
+        {
+            ExchangeRequest req = pendingRequests.get(i);
+
+            if (username != null && username.equals(req.getToUsername()))
+            {
+                requests.add(req);
+            }
+        }
+
+        return requests;
+    }
+
+    public synchronized ExchangeRequest findAndRemovePendingRequest(String fromUsername, String toUsername)
+    {
+        int i;
+        for (i = pendingRequests.size() - 1; i >= 0; i--)
+        {
+            ExchangeRequest req = pendingRequests.get(i);
+
+            if (fromUsername != null && toUsername != null &&
+                fromUsername.equals(req.getFromUsername()) &&
+                toUsername.equals(req.getToUsername()))
+            {
+                pendingRequests.remove(i);
+                return req;
+            }
+        }
+
+        return null;
+    }
+
+    public synchronized void executeExchange(String fromUsername, String toUsername, ArrayList<Integer> fromGives, ArrayList<Integer> toGives)
+    {
+        StickerUser from = activeUsers.get(fromUsername);
+        StickerUser to = activeUsers.get(toUsername);
+
+        if (from == null || to == null)
+        {
+            return;
+        }
+
+        int i;
+
+        for (i = 0; i < fromGives.size(); i++)
+        {
+            from.removeDuplicate(fromGives.get(i).intValue());
+            to.addDuplicate(fromGives.get(i).intValue());
+        }
+
+        for (i = 0; i < toGives.size(); i++)
+        {
+            to.removeDuplicate(toGives.get(i).intValue());
+            from.addDuplicate(toGives.get(i).intValue());
+        }
     }
 }

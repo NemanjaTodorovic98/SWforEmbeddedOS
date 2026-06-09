@@ -37,7 +37,7 @@ public class ClientHandlerTest
         out.println("REGISTER|user1|3,10|20,30");
         String registerResp = in.readLine();
 
-        out.println("UPDATE|7,8|60");
+        out.println("UPDATE|user1|7,8|60");
         String updateResp = in.readLine();
 
         out.println("QUIT");
