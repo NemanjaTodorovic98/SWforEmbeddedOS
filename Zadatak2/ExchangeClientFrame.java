@@ -15,6 +15,8 @@ public class ExchangeClientFrame extends JFrame
     private JButton findExchangesButton;
     private JButton requestExButton;
     private JButton checkPendingButton;
+    private JButton acceptPendingButton;
+    private JButton rejectPendingButton;
     private JCheckBox[] duplicateChecks;
     private JCheckBox[] missingChecks;
 
@@ -22,6 +24,7 @@ public class ExchangeClientFrame extends JFrame
     private BufferedReader reader;
     private PrintWriter writer;
     private StickerUser localUser;
+    private ArrayList<String> pendingRequestItems;
 
     public ExchangeClientFrame()
     {
@@ -54,6 +57,14 @@ public class ExchangeClientFrame extends JFrame
         checkPendingButton = new JButton("Zahtevi");
         checkPendingButton.setEnabled(false);
         top.add(checkPendingButton);
+
+        acceptPendingButton = new JButton("Prihvati");
+        acceptPendingButton.setEnabled(false);
+        top.add(acceptPendingButton);
+
+        rejectPendingButton = new JButton("Odbij");
+        rejectPendingButton.setEnabled(false);
+        top.add(rejectPendingButton);
 
         add(top, BorderLayout.NORTH);
 
@@ -109,6 +120,10 @@ public class ExchangeClientFrame extends JFrame
         findExchangesButton.addActionListener(e -> loadPossibleExchanges());
         requestExButton.addActionListener(e -> requestExchange());
         checkPendingButton.addActionListener(e -> checkPendingRequests());
+        acceptPendingButton.addActionListener(e -> acceptPendingRequest());
+        rejectPendingButton.addActionListener(e -> rejectPendingRequest());
+
+        pendingRequestItems = new ArrayList<String>();
     }
 
     private void register()
@@ -151,6 +166,8 @@ public class ExchangeClientFrame extends JFrame
                     findExchangesButton.setEnabled(true);
                     requestExButton.setEnabled(true);
                     checkPendingButton.setEnabled(true);
+                    acceptPendingButton.setEnabled(true);
+                    rejectPendingButton.setEnabled(true);
                 }
             }
         }
@@ -437,6 +454,7 @@ public class ExchangeClientFrame extends JFrame
     private void fillPendingArea(String response)
     {
         pendingArea.setText("");
+        pendingRequestItems.clear();
 
         String payload = response.substring("PENDING_REQUESTS|".length());
 
@@ -455,11 +473,285 @@ public class ExchangeClientFrame extends JFrame
 
             if (parts.length == 3)
             {
+                pendingRequestItems.add(items[i]);
+                pendingArea.append("#" + pendingRequestItems.size() + "\n");
                 pendingArea.append("Od: " + parts[0] + "\n");
                 pendingArea.append(parts[1].replace("GIVES=", "On/ona daje: ") + "\n");
                 pendingArea.append(parts[2].replace("WANTS=", "On/ona zeli: ") + "\n");
-                pendingArea.append("Akcija: klik dugme 'Prihvati'\n\n");
+                pendingArea.append("Akcija: Prihvati/Odbij dugme\n\n");
             }
         }
+    }
+
+    private void acceptPendingRequest()
+    {
+        if (pendingRequestItems.size() == 0)
+        {
+            logArea.append("Nema pending zahteva.\n");
+            return;
+        }
+
+        String indexInput = JOptionPane.showInputDialog(this, "Unesite broj zahteva (#):", "1");
+        if (indexInput == null)
+        {
+            return;
+        }
+
+        int index;
+        try
+        {
+            index = Integer.parseInt(indexInput.trim()) - 1;
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Neispravan broj zahteva.\n");
+            return;
+        }
+
+        if (index < 0 || index >= pendingRequestItems.size())
+        {
+            logArea.append("Ne postoji taj broj zahteva.\n");
+            return;
+        }
+
+        String item = pendingRequestItems.get(index);
+        String[] parts = item.split("#");
+        if (parts.length != 3)
+        {
+            logArea.append("Neispravan format pending zahteva.\n");
+            return;
+        }
+
+        String fromUser = parts[0];
+        String requestedCsv = parts[2].replace("WANTS=", "");
+
+        ArrayList<Integer> requested = parseCsvLocal(requestedCsv);
+        if (requested == null)
+        {
+            logArea.append("Neispravan csv u pending zahtevu.\n");
+            return;
+        }
+
+        if (requested.size() == 0)
+        {
+            logArea.append("Prazan zahtev nije moguce prihvatiti.\n");
+            return;
+        }
+
+        String selectedCsv = requestedCsv;
+        if (requested.size() > 1)
+        {
+            String input = JOptionPane.showInputDialog(
+                this,
+                "Odaberi podskup (csv) iz trazenih: " + requestedCsv,
+                requestedCsv);
+
+            if (input == null)
+            {
+                return;
+            }
+
+            selectedCsv = input.trim();
+            ArrayList<Integer> selectedList = parseCsvLocal(selectedCsv);
+
+            if (selectedList == null || selectedList.size() == 0)
+            {
+                logArea.append("Neispravan izbor podskupa.\n");
+                return;
+            }
+
+            if (!requested.containsAll(selectedList))
+            {
+                logArea.append("Podskup mora biti deo trazene liste.\n");
+                return;
+            }
+        }
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            writer.println("ACCEPT_REQUEST|" + fromUser + "|" + selectedCsv);
+            String resp = reader.readLine();
+
+            if (resp != null)
+            {
+                logArea.append(resp + "\n");
+                if (resp.startsWith("EXCHANGE_OK|"))
+                {
+                    applyLocalListsFromExchangeResponse(resp);
+                    checkPendingRequests();
+                    loadPossibleExchanges();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri prihvatanju zahteva.\n");
+        }
+    }
+
+    private void rejectPendingRequest()
+    {
+        if (pendingRequestItems.size() == 0)
+        {
+            logArea.append("Nema pending zahteva.\n");
+            return;
+        }
+
+        String indexInput = JOptionPane.showInputDialog(this, "Unesite broj zahteva (#):", "1");
+        if (indexInput == null)
+        {
+            return;
+        }
+
+        int index;
+        try
+        {
+            index = Integer.parseInt(indexInput.trim()) - 1;
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Neispravan broj zahteva.\n");
+            return;
+        }
+
+        if (index < 0 || index >= pendingRequestItems.size())
+        {
+            logArea.append("Ne postoji taj broj zahteva.\n");
+            return;
+        }
+
+        String item = pendingRequestItems.get(index);
+        String[] parts = item.split("#");
+        if (parts.length != 3)
+        {
+            logArea.append("Neispravan format pending zahteva.\n");
+            return;
+        }
+
+        String fromUser = parts[0];
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            writer.println("REJECT_REQUEST|" + fromUser);
+            String resp = reader.readLine();
+
+            if (resp != null)
+            {
+                logArea.append(resp + "\n");
+                if (resp.startsWith("REQUEST_REJECTED|"))
+                {
+                    checkPendingRequests();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri odbijanju zahteva.\n");
+        }
+    }
+
+    private void applyLocalListsFromExchangeResponse(String resp)
+    {
+        String[] parts = resp.split("\\|", -1);
+
+        int i;
+        ArrayList<Integer> dups = null;
+        ArrayList<Integer> missing = null;
+
+        for (i = 0; i < parts.length; i++)
+        {
+            if (parts[i].startsWith("NEW_DUPS="))
+            {
+                dups = parseCsvLocal(parts[i].substring("NEW_DUPS=".length()));
+            }
+            else if (parts[i].startsWith("NEW_MISSING="))
+            {
+                missing = parseCsvLocal(parts[i].substring("NEW_MISSING=".length()));
+            }
+        }
+
+        if (dups == null || missing == null)
+        {
+            return;
+        }
+
+        localUser.getDuplicates().clear();
+        localUser.getMissing().clear();
+
+        for (i = 0; i < dups.size(); i++)
+        {
+            localUser.addDuplicate(dups.get(i));
+        }
+
+        for (i = 0; i < missing.size(); i++)
+        {
+            localUser.addMissing(missing.get(i));
+        }
+
+        updateChecksFromLocalUser();
+    }
+
+    private ArrayList<Integer> parseCsvLocal(String csv)
+    {
+        ArrayList<Integer> list = new ArrayList<Integer>();
+
+        if (csv == null)
+        {
+            return null;
+        }
+
+        String trimmed = csv.trim();
+        if (trimmed.length() == 0)
+        {
+            return list;
+        }
+
+        String[] tokens = trimmed.split(",");
+
+        int i;
+        for (i = 0; i < tokens.length; i++)
+        {
+            String token = tokens[i].trim();
+
+            if (token.length() == 0)
+            {
+                return null;
+            }
+
+            int value;
+            try
+            {
+                value = Integer.parseInt(token);
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+
+            if (value < 1 || value > 99)
+            {
+                return null;
+            }
+
+            Integer boxed = Integer.valueOf(value);
+            if (!list.contains(boxed))
+            {
+                list.add(boxed);
+            }
+        }
+
+        return list;
     }
 }

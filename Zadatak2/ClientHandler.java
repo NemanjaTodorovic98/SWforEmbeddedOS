@@ -348,6 +348,17 @@ public class ClientHandler implements Runnable
         }
 
         String toUsername = parts[1].trim();
+
+        if (toUsername.length() == 0)
+        {
+            return "ERROR|Nedostaje korisnicko ime";
+        }
+
+        if (registeredUsername.equals(toUsername))
+        {
+            return "ERROR|Ne mozete slati zahtev sebi";
+        }
+
         ArrayList<Integer> toGive = parseList(parts[2]);
         ArrayList<Integer> toWant = parseList(parts[3]);
 
@@ -356,10 +367,37 @@ public class ClientHandler implements Runnable
             return "ERROR|Neispravan format liste";
         }
 
+        if (toGive.size() == 0 || toWant.size() == 0)
+        {
+            return "ERROR|Liste ne smeju biti prazne";
+        }
+
+        StickerUser requester = serverState.getUser(registeredUsername);
         StickerUser targetUser = serverState.getUser(toUsername);
+
+        if (requester == null)
+        {
+            return "ERROR|Korisnik nije registrovan";
+        }
+
         if (targetUser == null)
         {
             return "ERROR|Korisnik nije online";
+        }
+
+        if (!requester.getDuplicates().containsAll(toGive))
+        {
+            return "ERROR|Nemate sve slicice koje nudite";
+        }
+
+        if (!requester.getMissing().containsAll(toWant))
+        {
+            return "ERROR|Ne nedostaju vam sve trazene slicice";
+        }
+
+        if (!targetUser.getDuplicates().containsAll(toWant))
+        {
+            return "ERROR|Drugi korisnik trenutno nema sve trazene slicice";
         }
 
         ExchangeRequest req = new ExchangeRequest(registeredUsername, toUsername, toGive, toWant);
@@ -401,7 +439,7 @@ public class ClientHandler implements Runnable
     {
         if (parts.length != 3)
         {
-            return "ERROR|Format ACCEPT_REQUEST|from_user|give_back_list";
+            return "ERROR|Format ACCEPT_REQUEST|from_user|selected_list";
         }
 
         if (registeredUsername == null)
@@ -427,19 +465,50 @@ public class ClientHandler implements Runnable
         ArrayList<Integer> fromGives = req.getTickersFromGives();
         ArrayList<Integer> fromWants = req.getTickersFromWants();
 
+        StickerUser fromUser = serverState.getUser(fromUsername);
+        StickerUser toUser = serverState.getUser(registeredUsername);
+
+        if (fromUser == null || toUser == null)
+        {
+            return "ERROR|Neki korisnik vise nije online";
+        }
+
+        if (!fromUser.getDuplicates().containsAll(fromGives))
+        {
+            return "ERROR|Posiljalac vise nema sve ponudjene slicice";
+        }
+
+        if (!toUser.getDuplicates().containsAll(fromWants))
+        {
+            return "ERROR|Nemate sve trazene slicice za uzvrat";
+        }
+
         if (fromGives.size() != toGive.size())
         {
             return "ERROR|Broj slicica se ne poklapa";
         }
 
-        if (!toGive.containsAll(fromWants))
+        if (!fromWants.containsAll(toGive))
         {
-            return "ERROR|Ne imas te slicice";
+            return "ERROR|Izbor mora biti podskup trazenih slicica";
+        }
+
+        if (!toUser.getDuplicates().containsAll(toGive))
+        {
+            return "ERROR|Nemate sve izabrane slicice";
         }
 
         serverState.executeExchange(fromUsername, registeredUsername, fromGives, toGive);
 
-        return "EXCHANGE_OK|" + fromUsername;
+        StickerUser snapshot = serverState.getUserSnapshot(registeredUsername);
+        if (snapshot == null)
+        {
+            return "EXCHANGE_OK|" + fromUsername;
+        }
+
+        return "EXCHANGE_OK|" + fromUsername
+            + "|NEW_DUPS=" + toCsv(snapshot.getDuplicates())
+            + "|NEW_MISSING=" + toCsv(snapshot.getMissing());
     }
 
     private String handleRejectRequest(String[] parts, String registeredUsername)
