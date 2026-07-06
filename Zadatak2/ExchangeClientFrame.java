@@ -13,10 +13,13 @@ public class ExchangeClientFrame extends JFrame
     private JButton registerButton;
     private JButton updateButton;
     private JButton findExchangesButton;
+    private JButton deleteButton;
     private JButton requestExButton;
+    private JButton requestSelectedExchangeButton;
     private JButton checkPendingButton;
     private JButton acceptPendingButton;
     private JButton rejectPendingButton;
+    private JComboBox<String> exchangeComboBox;
     private JCheckBox[] duplicateChecks;
     private JCheckBox[] missingChecks;
 
@@ -50,9 +53,17 @@ public class ExchangeClientFrame extends JFrame
         findExchangesButton.setEnabled(false);
         top.add(findExchangesButton);
 
+        deleteButton = new JButton("Obrisi");
+        deleteButton.setEnabled(false);
+        top.add(deleteButton);
+
         requestExButton = new JButton("Zahtevaj");
         requestExButton.setEnabled(false);
         top.add(requestExButton);
+
+        requestSelectedExchangeButton = new JButton("Zahtevaj izabranu razmenu");
+        requestSelectedExchangeButton.setEnabled(false);
+        top.add(requestSelectedExchangeButton);
 
         checkPendingButton = new JButton("Zahtevi");
         checkPendingButton.setEnabled(false);
@@ -97,9 +108,12 @@ public class ExchangeClientFrame extends JFrame
 
         exchangesArea = new JTextArea();
         exchangesArea.setEditable(false);
+        exchangeComboBox = new JComboBox<String>();
+        exchangeComboBox.setEnabled(false);
         JPanel exchangePanel = new JPanel(new BorderLayout());
         exchangePanel.add(new JLabel("Moguce razmene"), BorderLayout.NORTH);
-        exchangePanel.add(new JScrollPane(exchangesArea), BorderLayout.CENTER);
+        exchangePanel.add(exchangeComboBox, BorderLayout.CENTER);
+        exchangePanel.add(new JScrollPane(exchangesArea), BorderLayout.SOUTH);
         center.add(exchangePanel);
 
         pendingArea = new JTextArea();
@@ -118,7 +132,9 @@ public class ExchangeClientFrame extends JFrame
         registerButton.addActionListener(e -> register());
         updateButton.addActionListener(e -> updateLists());
         findExchangesButton.addActionListener(e -> loadPossibleExchanges());
+        deleteButton.addActionListener(e -> deleteSelectedStickers());
         requestExButton.addActionListener(e -> requestExchange());
+        requestSelectedExchangeButton.addActionListener(e -> requestSelectedPossibleExchange());
         checkPendingButton.addActionListener(e -> checkPendingRequests());
         acceptPendingButton.addActionListener(e -> acceptPendingRequest());
         rejectPendingButton.addActionListener(e -> rejectPendingRequest());
@@ -164,10 +180,13 @@ public class ExchangeClientFrame extends JFrame
                 {
                     updateButton.setEnabled(true);
                     findExchangesButton.setEnabled(true);
+                    deleteButton.setEnabled(true);
                     requestExButton.setEnabled(true);
+                    requestSelectedExchangeButton.setEnabled(true);
                     checkPendingButton.setEnabled(true);
                     acceptPendingButton.setEnabled(true);
                     rejectPendingButton.setEnabled(true);
+                    exchangeComboBox.setEnabled(true);
                 }
             }
         }
@@ -277,12 +296,14 @@ public class ExchangeClientFrame extends JFrame
     private void fillExchangesArea(String response)
     {
         exchangesArea.setText("");
+        exchangeComboBox.removeAllItems();
 
         String payload = response.substring("POSSIBLE_EXCHANGES|".length());
 
         if (payload.equals("NONE"))
         {
             exchangesArea.setText("Trenutno nema mogucih razmena.");
+            exchangeComboBox.addItem("Nema razmena");
             return;
         }
 
@@ -295,10 +316,129 @@ public class ExchangeClientFrame extends JFrame
 
             if (parts.length == 3)
             {
+                String summary = parts[0] + " | dajes " + parts[1].replace("YOU_GIVE=", "") + " | dobijas " + parts[2].replace("YOU_GET=", "");
+                exchangeComboBox.addItem(summary);
                 exchangesArea.append("Korisnik: " + parts[0] + "\n");
                 exchangesArea.append(parts[1].replace("YOU_GIVE=", "Ti dajes: ") + "\n");
                 exchangesArea.append(parts[2].replace("YOU_GET=", "Ti dobijas: ") + "\n\n");
             }
+        }
+    }
+
+    private void deleteSelectedStickers()
+    {
+        if (localUser == null)
+        {
+            logArea.append("Prvo se registrujte.\n");
+            return;
+        }
+
+        int i;
+        for (i = 1; i <= 99; i++)
+        {
+            if (duplicateChecks[i - 1].isSelected())
+            {
+                localUser.removeDuplicate(i);
+            }
+
+            if (missingChecks[i - 1].isSelected())
+            {
+                localUser.removeMissing(i);
+            }
+        }
+
+        updateChecksFromLocalUser();
+        sendUpdateToServer();
+    }
+
+    private void sendUpdateToServer()
+    {
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            String msg = "UPDATE|" + localUser.getUsername() + "|" + toCsv(localUser.getDuplicates()) + "|" + toCsv(localUser.getMissing());
+            writer.println(msg);
+            String resp = reader.readLine();
+
+            if (resp != null)
+            {
+                logArea.append(resp + "\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri slanju update poruke.\n");
+        }
+    }
+
+    private void requestSelectedPossibleExchange()
+    {
+        if (localUser == null)
+        {
+            logArea.append("Prvo se registrujte.\n");
+            return;
+        }
+
+        Object selected = exchangeComboBox.getSelectedItem();
+        if (selected == null)
+        {
+            logArea.append("Nema izabrane razmene.\n");
+            return;
+        }
+
+        String value = selected.toString();
+        if (value.equals("Nema razmena"))
+        {
+            logArea.append("Trenutno nema mogucih razmena.\n");
+            return;
+        }
+
+        String[] parts = value.split("\\|", -1);
+        if (parts.length < 3)
+        {
+            logArea.append("Neispravan prikaz razmene.\n");
+            return;
+        }
+
+        String toUsername = parts[0].trim();
+        String giveStr = parts[1].replace("dajes", "").trim();
+        String wantStr = parts[2].replace("dobijas", "").trim();
+
+        if (giveStr.startsWith(":"))
+        {
+            giveStr = giveStr.substring(1).trim();
+        }
+
+        if (wantStr.startsWith(":"))
+        {
+            wantStr = wantStr.substring(1).trim();
+        }
+
+        try
+        {
+            if (writer == null)
+            {
+                logArea.append("Niste povezani na server.\n");
+                return;
+            }
+
+            String msg = "REQUEST_EXCHANGE|" + toUsername + "|" + giveStr + "|" + wantStr;
+            writer.println(msg);
+            String resp = reader.readLine();
+
+            if (resp != null)
+            {
+                logArea.append(resp + "\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            logArea.append("Problem pri slanju izabrane razmene.\n");
         }
     }
 
