@@ -66,4 +66,11 @@ public class BoardView extends View {
         }
         return true;
     }
+
+    public void resetBoard() {
+        for (int r = 0; r < ROWS; r++)
+            for (int c = 0; c < COLS; c++)
+                cells[r][c] = 0;
+        invalidate();
+    }
 }

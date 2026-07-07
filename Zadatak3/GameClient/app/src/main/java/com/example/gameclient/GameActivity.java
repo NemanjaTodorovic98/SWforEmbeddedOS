@@ -13,6 +13,7 @@ public class GameActivity extends AppCompatActivity {
     private String opponent;
     private int myPlayer;
     private boolean myTurn;
+    private String nextPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +24,7 @@ public class GameActivity extends AppCompatActivity {
         opponent = getIntent().getStringExtra("opponent");
         myPlayer = getIntent().getIntExtra("myPlayer", 1);
         myTurn = (myPlayer == 1);
+        nextPlayer = (myPlayer == 1) ? myUsername : opponent;
 
         tvStatus = findViewById(R.id.tv_status);
         boardView = findViewById(R.id.board_view);
@@ -57,25 +59,47 @@ public class GameActivity extends AppCompatActivity {
                 int row = Integer.parseInt(parts[1]);
                 int col = Integer.parseInt(parts[2]);
                 int player = Integer.parseInt(parts[3]);
-                String nextPlayer = parts[4];
-                boardView.setCell(row, col, player);
-                myTurn = nextPlayer.equals(myUsername);
-                updateStatus();
+                String nextPlay = parts[4];
+                runOnUiThread(() -> {
+                    boardView.setCell(row, col, player);
+                    nextPlayer = nextPlay;
+                    myTurn = nextPlayer.equals(myUsername);
+                    updateStatus();
+                });
                 break;
             case "GAME_END":
                 String winner = parts[1];
-                String msg = winner.equals("DRAW") ? "Nereseno!" : winner + " jepobedio!";
-                new AlertDialog.Builder(this)
-                        .setTitle("Kraj igre")
-                        .setMessage(msg)
-                        .setPositiveButton("OK", (d, w) -> finish())
-                        .show();
+                String msg = winner.equals("DRAW") ? "Nereseno!" : winner + " je pobedio!";
+                runOnUiThread(() ->
+                        new AlertDialog.Builder(this)
+                                .setTitle("Kraj igre")
+                                .setMessage(msg + "\n\nIgraj ponovo?")
+                                .setCancelable(false)
+                                .setPositiveButton("Da", (d, w) ->
+                                        LobbyActivity.sharedConnection.send("REMATCH|YES"))
+                                .setNegativeButton("Ne", (d, w) ->
+                                        LobbyActivity.sharedConnection.send("REMATCH|NO"))
+                                .show()
+                );
+                break;
+            case "REMATCH_START":
+                opponent = parts[1];
+                myPlayer = Integer.parseInt(parts[2]);
+                myTurn = (myPlayer == 1);
+                nextPlayer = (myPlayer == 1) ? myUsername : opponent;
+                runOnUiThread(() -> {
+                    boardView.resetBoard();
+                    updateStatus();
+                });
+                break;
+            case "BACK_TO_LOBBY":
+                finish();
                 break;
         }
     }
 
     private void updateStatus() {
-        tvStatus.setText(myTurn ? "Tvoj potez" : "Ceka se " + opponent);
+        tvStatus.setText(myTurn ? "Tvoj potez" : "Ceka se " + nextPlayer);
     }
 
     @Override

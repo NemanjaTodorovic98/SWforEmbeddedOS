@@ -11,6 +11,9 @@ public class GameServerState
     private final Set<String> availableUsers;
     private final Map<String, GameSession> sessionsByUser;
     private final Map<String, String> pendingInviteByTarget;
+    private final Map<String, String> rematchPendingByUser;
+    private final Map<String, Boolean> rematchDecisions;
+    private final Map<String, String> rematchOriginalFirst;
 
     public GameServerState()
     {
@@ -18,6 +21,9 @@ public class GameServerState
         this.availableUsers = new HashSet<String>();
         this.sessionsByUser = new HashMap<String, GameSession>();
         this.pendingInviteByTarget = new HashMap<String, String>();
+        this.rematchPendingByUser = new HashMap<String, String>();
+        this.rematchDecisions = new HashMap<String, Boolean>();
+        this.rematchOriginalFirst = new HashMap<String, String>();
     }
 
     public synchronized String register(String username, GameClientHandler handler)
@@ -137,8 +143,8 @@ public class GameServerState
         fromHandler.send("INVITE_RESULT|ACCEPTED|" + responder);
         responderHandler.send("INVITE_RESULT|ACCEPTED|" + fromUser);
 
-        fromHandler.send("START_GAME|" + responder + "|YOUR_TURN");
-        responderHandler.send("START_GAME|" + fromUser + "|WAIT");
+        fromHandler.send("START_GAME|" + responder + "|1");
+        responderHandler.send("START_GAME|" + fromUser + "|2");
 
         broadcastAvailableUsers();
         return null;
@@ -162,7 +168,8 @@ public class GameServerState
         GameClientHandler first = onlineUsers.get(username);
         GameClientHandler second = onlineUsers.get(other);
 
-        String msg = "MOVE_OK|" + result.getColumn() + "|" + result.getRow() + "|next=" + (result.getNextPlayer() == null ? "NONE" : result.getNextPlayer());
+        int playerValue = session.getPlayerOne().equals(username) ? 1 : 2;
+        String msg = "MOVE_OK|" + result.getRow() + "|" + result.getColumn() + "|" + playerValue + "|" + (result.getNextPlayer() == null ? "NONE" : result.getNextPlayer());
         if (first != null)
         {
             first.send(msg);
@@ -185,13 +192,72 @@ public class GameServerState
             return null;
         }
 
+        String p1 = session.getPlayerOne();
+        String p2 = session.getPlayerTwo();
+
         sendGameEnd(session);
 
-        sessionsByUser.remove(session.getPlayerOne());
-        sessionsByUser.remove(session.getPlayerTwo());
-        availableUsers.add(session.getPlayerOne());
-        availableUsers.add(session.getPlayerTwo());
-        broadcastAvailableUsers();
+        sessionsByUser.remove(p1);
+        sessionsByUser.remove(p2);
+
+        rematchPendingByUser.put(p1, p2);
+        rematchPendingByUser.put(p2, p1);
+        rematchOriginalFirst.put(p1, p1);
+        rematchOriginalFirst.put(p2, p1);
+
+        return null;
+    }
+
+    public synchronized String rematch(String username, boolean accepted)
+    {
+        String opponent = rematchPendingByUser.get(username);
+        if (opponent == null)
+        {
+            return "Nema aktivnog rematch zahteva";
+        }
+
+        rematchDecisions.put(username, accepted);
+
+        if (!rematchDecisions.containsKey(opponent))
+        {
+            return null;
+        }
+
+        boolean opponentAccepted = rematchDecisions.get(opponent);
+        String originalFirst = rematchOriginalFirst.get(username);
+
+        rematchPendingByUser.remove(username);
+        rematchPendingByUser.remove(opponent);
+        rematchDecisions.remove(username);
+        rematchDecisions.remove(opponent);
+        rematchOriginalFirst.remove(username);
+        rematchOriginalFirst.remove(opponent);
+
+        GameClientHandler myHandler = onlineUsers.get(username);
+        GameClientHandler opponentHandler = onlineUsers.get(opponent);
+
+        if (!accepted || !opponentAccepted)
+        {
+            availableUsers.add(username);
+            availableUsers.add(opponent);
+            if (myHandler != null) myHandler.send("BACK_TO_LOBBY");
+            if (opponentHandler != null) opponentHandler.send("BACK_TO_LOBBY");
+            broadcastAvailableUsers();
+            return null;
+        }
+
+        String newFirst = originalFirst.equals(username) ? opponent : username;
+        String newSecond = newFirst.equals(username) ? opponent : username;
+
+        GameSession newSession = new GameSession(newFirst, newSecond);
+        sessionsByUser.put(newFirst, newSession);
+        sessionsByUser.put(newSecond, newSession);
+
+        GameClientHandler firstHandler = onlineUsers.get(newFirst);
+        GameClientHandler secondHandler = onlineUsers.get(newSecond);
+
+        if (firstHandler != null) firstHandler.send("REMATCH_START|" + newSecond + "|1");
+        if (secondHandler != null) secondHandler.send("REMATCH_START|" + newFirst + "|2");
 
         return null;
     }
@@ -222,6 +288,21 @@ public class GameServerState
             }
         }
 
+        String rematchOpponent = rematchPendingByUser.get(username);
+        if (rematchOpponent != null)
+        {
+            rematchPendingByUser.remove(username);
+            rematchPendingByUser.remove(rematchOpponent);
+            rematchDecisions.remove(username);
+            rematchDecisions.remove(rematchOpponent);
+            rematchOriginalFirst.remove(username);
+            rematchOriginalFirst.remove(rematchOpponent);
+
+            availableUsers.add(rematchOpponent);
+            GameClientHandler otherHandler = onlineUsers.get(rematchOpponent);
+            if (otherHandler != null) otherHandler.send("BACK_TO_LOBBY");
+        }
+
         broadcastAvailableUsers();
     }
 
@@ -237,79 +318,63 @@ public class GameServerState
 
         if (winner == null)
         {
-            if (h1 != null)
-            {
-                h1.send("GAME_END|DRAW");
-            }
-            if (h2 != null)
-            {
-                h2.send("GAME_END|DRAW");
-            }
+            if (h1 != null) h1.send("GAME_END|DRAW");
+            if (h2 != null) h2.send("GAME_END|DRAW");
             return;
         }
 
         if (h1 != null)
         {
-            h1.send(winner.equals(p1) ? "GAME_END|WIN" : "GAME_END|LOSE");
+            h1.send("GAME_END|" + winner);
         }
 
         if (h2 != null)
         {
-            h2.send(winner.equals(p2) ? "GAME_END|WIN" : "GAME_END|LOSE");
-        }
-    }
-
-    private boolean isRegistered(String username)
-    {
-        return username != null && onlineUsers.containsKey(username);
-    }
-
-    private void removeOutgoingInvites(String fromUser)
-    {
-        ArrayList<String> toRemove = new ArrayList<String>();
-
-        for (Map.Entry<String, String> entry : pendingInviteByTarget.entrySet())
-        {
-            if (fromUser.equals(entry.getValue()))
-            {
-                toRemove.add(entry.getKey());
-            }
-        }
-
-        int i;
-        for (i = 0; i < toRemove.size(); i++)
-        {
-            pendingInviteByTarget.remove(toRemove.get(i));
+            h2.send("GAME_END|" + winner);
         }
     }
 
     private void broadcastAvailableUsers()
     {
-        for (String user : availableUsers)
+        String msg = listFor("");
+        for (GameClientHandler handler : onlineUsers.values())
         {
-            GameClientHandler handler = onlineUsers.get(user);
-            if (handler != null)
+            handler.send(msg);
+        }
+    }
+
+    private void removeOutgoingInvites(String username)
+    {
+        ArrayList<String> toRemove = new ArrayList<String>();
+        for (Map.Entry<String, String> entry : pendingInviteByTarget.entrySet())
+        {
+            if (entry.getValue().equals(username))
             {
-                handler.send(listFor(user));
+                toRemove.add(entry.getKey());
             }
         }
+        for (String key : toRemove)
+        {
+            pendingInviteByTarget.remove(key);
+        }
+    }
+
+    private boolean isRegistered(String username)
+    {
+        return onlineUsers.containsKey(username);
     }
 
     private String join(ArrayList<String> list)
     {
         StringBuilder sb = new StringBuilder();
-
-        int i;
-        for (i = 0; i < list.size(); i++)
+        for (int i = 0; i < list.size(); i++)
         {
             sb.append(list.get(i));
-
             if (i < list.size() - 1)
             {
                 sb.append(",");
             }
         }
-
         return sb.toString();
     }
 }

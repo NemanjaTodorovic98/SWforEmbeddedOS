@@ -31,7 +31,9 @@ public class ServerConnection {
     public void connect(String ip, int port) {
         new Thread(() -> {
             try {
+                android.util.Log.d("ServerConnection", "Pokusaj konekcije na " + ip + ":" + port);
                 socket = new Socket(ip, port);
+                android.util.Log.d("ServerConnection", "Konekcija uspešna!");
                 out = new PrintWriter(socket.getOutputStream(), true);
                 mainHandler.post(() -> { if (listener != null) listener.onConnected(); });
 
@@ -40,13 +42,16 @@ public class ServerConnection {
                 String line;
                 while ((line = in.readLine()) != null) {
                     final String msg = line;
+                    android.util.Log.d("ServerConnection", "Primljena poruka: " + msg);
                     mainHandler.post(() -> { if (listener != null) listener.onMessage(msg); });
                 }
-            } catch (Exception e)
+            } catch (Exception e) {
+                android.util.Log.e("ServerConnection", "Greška: " + e.getMessage(), e);
                 mainHandler.post(() -> { if (listener != null) listener.onDisconnected(); });
             }
         }).start();
     }
+
     public void send(String message) {
         new Thread(() -> {
             if (out != null) out.println(message);

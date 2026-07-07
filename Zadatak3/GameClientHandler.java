@@ -179,6 +179,28 @@ public class GameClientHandler implements Runnable
             return true;
         }
 
+        if ("REMATCH".equalsIgnoreCase(command))
+        {
+            if (!requireRegister())
+            {
+                return true;
+            }
+
+            if (parts.length != 2)
+            {
+                send("ERROR|Format REMATCH|YES/NO");
+                return true;
+            }
+
+            boolean accepted = "YES".equalsIgnoreCase(parts[1].trim());
+            String error = serverState.rematch(username, accepted);
+            if (error != null)
+            {
+                send("ERROR|" + error);
+            }
+            return true;
+        }
+
         if (GameProtocol.QUIT.equalsIgnoreCase(command))
         {
             send("BYE");

@@ -100,7 +100,7 @@ public class LobbyActivity extends AppCompatActivity {
                 break;
             case "START_GAME":
                 String opponent = parts[1];
-                int myPlayer = parts[2].equals("RED") ? 1 : 2;
+                int myPlayer = Integer.parseInt(parts[2]);
                 Intent intent = new Intent(LobbyActivity.this, GameActivity.class);
                 intent.putExtra("opponent", opponent);
                 intent.putExtra("myPlayer", myPlayer);
