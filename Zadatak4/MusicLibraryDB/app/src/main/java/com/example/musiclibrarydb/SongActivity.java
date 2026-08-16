@@ -38,8 +38,10 @@ public class SongActivity extends AppCompatActivity {
 
         Button saveButton = findViewById(R.id.saveSongButton);
         Button deleteButton = findViewById(R.id.deleteSongButton);
+        Button backButton = findViewById(R.id.backButton);
         saveButton.setOnClickListener(v -> saveSong());
         deleteButton.setOnClickListener(v -> deleteSong());
+        backButton.setOnClickListener(v -> finish());
 
         songListView.setOnItemClickListener((parent, view, position, id) -> {
             selectedSongId = (int) id;

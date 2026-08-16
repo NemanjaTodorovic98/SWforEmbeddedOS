@@ -143,6 +143,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.insert(TABLE_GENRES, null, values);
     }
 
+    public int updateArtist(int id, String name) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NAME, name);
+        return db.update(TABLE_ARTISTS, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
+    }
+
+    public int updateGenre(int id, String name) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NAME, name);
+        return db.update(TABLE_GENRES, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
+    }
+
     public Cursor getAllArtists() {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.query(TABLE_ARTISTS, null, null, null, null, null, COLUMN_NAME + " ASC");
@@ -185,11 +199,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public int deleteArtist(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.query(TABLE_SONGS, new String[]{COLUMN_ID},
+                COLUMN_ARTIST_ID + " = ?", new String[]{String.valueOf(id)}, null, null, null, "1");
+        boolean used = cursor.moveToFirst();
+        cursor.close();
+        if (used) {
+            return -1;
+        }
         return db.delete(TABLE_ARTISTS, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
     }
 
     public int deleteGenre(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.query(TABLE_SONGS, new String[]{COLUMN_ID},
+                COLUMN_GENRE_ID + " = ?", new String[]{String.valueOf(id)}, null, null, null, "1");
+        boolean used = cursor.moveToFirst();
+        cursor.close();
+        if (used) {
+            return -1;
+        }
         return db.delete(TABLE_GENRES, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
     }
 }

@@ -22,6 +22,8 @@ public class ArtistGenreActivity extends AppCompatActivity {
     private EditText genreInput;
     private ListView artistListView;
     private ListView genreListView;
+    private int selectedArtistId = -1;
+    private int selectedGenreId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,12 +38,31 @@ public class ArtistGenreActivity extends AppCompatActivity {
         genreListView = findViewById(R.id.genreListView);
 
         Button addArtistButton = findViewById(R.id.addArtistButton);
+        Button updateArtistButton = findViewById(R.id.updateArtistButton);
+        Button deleteArtistButton = findViewById(R.id.deleteArtistButton);
         Button addGenreButton = findViewById(R.id.addGenreButton);
+        Button updateGenreButton = findViewById(R.id.updateGenreButton);
+        Button deleteGenreButton = findViewById(R.id.deleteGenreButton);
         Button songsButton = findViewById(R.id.songsButton);
 
         addArtistButton.setOnClickListener(v -> addArtist());
+        updateArtistButton.setOnClickListener(v -> updateArtist());
+        deleteArtistButton.setOnClickListener(v -> deleteArtist());
         addGenreButton.setOnClickListener(v -> addGenre());
+        updateGenreButton.setOnClickListener(v -> updateGenre());
+        deleteGenreButton.setOnClickListener(v -> deleteGenre());
         songsButton.setOnClickListener(v -> startActivity(new Intent(this, SongActivity.class)));
+
+        artistListView.setOnItemClickListener((parent, view, position, id) -> {
+            selectedArtistId = (int) id;
+            String value = (String) parent.getItemAtPosition(position);
+            artistInput.setText(value.substring(value.indexOf(": ") + 2));
+        });
+        genreListView.setOnItemClickListener((parent, view, position, id) -> {
+            selectedGenreId = (int) id;
+            String value = (String) parent.getItemAtPosition(position);
+            genreInput.setText(value.substring(value.indexOf(": ") + 2));
+        });
 
         loadArtists();
         loadGenres();
@@ -57,6 +78,7 @@ public class ArtistGenreActivity extends AppCompatActivity {
         long id = databaseHelper.insertArtist(name);
         if (id != -1) {
             artistInput.setText("");
+            selectedArtistId = -1;
             loadArtists();
             Toast.makeText(this, "Izvodac dodat", Toast.LENGTH_SHORT).show();
         } else {
@@ -74,11 +96,70 @@ public class ArtistGenreActivity extends AppCompatActivity {
         long id = databaseHelper.insertGenre(name);
         if (id != -1) {
             genreInput.setText("");
+            selectedGenreId = -1;
             loadGenres();
             Toast.makeText(this, "Zanr dodat", Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(this, "greska pri dodavanju zanra", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void updateArtist() {
+        String name = artistInput.getText().toString().trim();
+        if (selectedArtistId == -1 || name.isEmpty()) {
+            Toast.makeText(this, "Izaberite umetnika i unesite naziv", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        databaseHelper.updateArtist(selectedArtistId, name);
+        selectedArtistId = -1;
+        artistInput.setText("");
+        loadArtists();
+        Toast.makeText(this, "Umetnik izmenjen", Toast.LENGTH_SHORT).show();
+    }
+
+    private void deleteArtist() {
+        if (selectedArtistId == -1) {
+            Toast.makeText(this, "Izaberite umetnika iz liste", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        int deleted = databaseHelper.deleteArtist(selectedArtistId);
+        if (deleted == -1) {
+            Toast.makeText(this, "Umetnik izvodi pesmu iz liste", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        selectedArtistId = -1;
+        artistInput.setText("");
+        loadArtists();
+        Toast.makeText(this, "Umetnik obrisan", Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateGenre() {
+        String name = genreInput.getText().toString().trim();
+        if (selectedGenreId == -1 || name.isEmpty()) {
+            Toast.makeText(this, "Izaberite zanr i unesite naziv", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        databaseHelper.updateGenre(selectedGenreId, name);
+        selectedGenreId = -1;
+        genreInput.setText("");
+        loadGenres();
+        Toast.makeText(this, "Zanr promenjen", Toast.LENGTH_SHORT).show();
+    }
+
+    private void deleteGenre() {
+        if (selectedGenreId == -1) {
+            Toast.makeText(this, "Izaberite zanr iz liste", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        int deleted = databaseHelper.deleteGenre(selectedGenreId);
+        if (deleted == -1) {
+            Toast.makeText(this, "Zanr se koristi u pesmi", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        selectedGenreId = -1;
+        genreInput.setText("");
+        loadGenres();
+        Toast.makeText(this, "Zanr obrisan", Toast.LENGTH_SHORT).show();
     }
 
     private void loadArtists() {
@@ -94,7 +175,13 @@ public class ArtistGenreActivity extends AppCompatActivity {
         }
         cursor.close();
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, artists);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artists) {
+            @Override
+            public long getItemId(int position) {
+                String value = getItem(position);
+                return Integer.parseInt(value.substring(0, value.indexOf(':')));
+            }
+        };
         artistListView.setAdapter(adapter);
     }
 
@@ -111,7 +198,13 @@ public class ArtistGenreActivity extends AppCompatActivity {
         }
         cursor.close();
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, genres);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, genres) {
+            @Override
+            public long getItemId(int position) {
+                String value = getItem(position);
+                return Integer.parseInt(value.substring(0, value.indexOf(':')));
+            }
+        };
         genreListView.setAdapter(adapter);
     }
 }

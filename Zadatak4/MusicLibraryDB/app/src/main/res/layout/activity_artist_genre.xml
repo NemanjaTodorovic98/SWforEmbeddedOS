@@ -27,6 +27,19 @@
             android:text="Dodaj izvođača"
             android:layout_marginBottom="16dp" />
 
+        <Button
+            android:id="@+id/updateArtistButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Izmeni izabranog umetnika" />
+
+        <Button
+            android:id="@+id/deleteArtistButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Obrisi izabranog umetnika"
+            android:layout_marginBottom="8dp" />
+
     <ListView
             android:id="@+id/artistListView"
             android:layout_width="match_parent"
@@ -46,6 +59,19 @@
             android:layout_height="wrap_content"
             android:text="Dodaj žanr"
             android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/updateGenreButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Izmeni izabrani zanr" />
+
+        <Button
+            android:id="@+id/deleteGenreButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Obrisi izabrani zanr"
+            android:layout_marginBottom="8dp" />
 
         <ListView
             android:id="@+id/genreListView"
