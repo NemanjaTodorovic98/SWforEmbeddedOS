@@ -1,5 +1,6 @@
 package com.example.musiclibrarydb;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,7 +33,11 @@ public class MainActivity extends AppCompatActivity {
         welcomeText.setText("sql base test");
         startButton.setText(R.string.start_button);
 
-        startButton.setOnClickListener(v -> testDatabase());
+        startButton.setOnClickListener(v -> {
+            testDatabase();
+            Intent intent = new Intent(MainActivity.this, ArtistGenreActivity.class);
+            startActivity(intent);
+        });
 
         loginButton.setOnClickListener(v -> {
             String name = usernameInput.getText().toString().trim();
@@ -46,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
             boolean loginOk = databaseHelper.loginUser(name, password);
             if (loginOk) {
                 Toast.makeText(this, "Uspesna prijava: " + name, Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(MainActivity.this, ArtistGenreActivity.class);
+                startActivity(intent);
             } else {
                 Toast.makeText(this, "Ne postoji korisnik ili je sifra pogresna", Toast.LENGTH_SHORT).show();
             }

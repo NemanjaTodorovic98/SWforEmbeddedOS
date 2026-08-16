@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Izvođači i žanrovi"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <EditText
+            android:id="@+id/artistInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Unesite izvođača"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/addArtistButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dodaj izvođača"
+            android:layout_marginBottom="16dp" />
+
+    <ListView
+            android:id="@+id/artistListView"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:layout_marginBottom="24dp" />
+
+        <EditText
+            android:id="@+id/genreInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Unesite žanr"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/addGenreButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dodaj žanr"
+            android:layout_marginBottom="16dp" />
+
+        <ListView
+            android:id="@+id/genreListView"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+        android:id="@+id/songsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Menazdment pesmama" />
+
+    </LinearLayout>
