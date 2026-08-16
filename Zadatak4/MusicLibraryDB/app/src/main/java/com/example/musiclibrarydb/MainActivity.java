@@ -26,19 +26,10 @@ public class MainActivity extends AppCompatActivity {
         TextView welcomeText = findViewById(R.id.welcomeMessage);
         EditText usernameInput = findViewById(R.id.usernameInput);
         EditText passwordInput = findViewById(R.id.passwordInput);
-        Button startButton = findViewById(R.id.startButton);
         Button loginButton = findViewById(R.id.loginButton);
 
         titleText.setText(R.string.welcome_title);
-        welcomeText.setText("sql base test");
-        startButton.setText(R.string.start_button);
-
-        startButton.setOnClickListener(v -> {
-            testDatabase();
-            Intent intent = new Intent(MainActivity.this, ArtistGenreActivity.class);
-            intent.putExtra("user_name", "admin");
-            startActivity(intent);
-        });
+        welcomeText.setText("Prijavite se za nastavak");
 
         loginButton.setOnClickListener(v -> {
             String name = usernameInput.getText().toString().trim();
@@ -56,29 +47,13 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra("user_name", name);
                 startActivity(intent);
             } else {
-                Toast.makeText(this, "Ne postoji korisnik ili je sifra pogresna", Toast.LENGTH_SHORT).show();
+                if (databaseHelper.userExists(name)) {
+                    Toast.makeText(this, "Korisnik vec postoji, ali sifra nije dobra", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Greska pri cuvanju korisnika", Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
 
-    private void testDatabase() {
-        String name = "admin";
-        String password = "1234";
-
-        if (!databaseHelper.userExists(name)) {
-            long result = databaseHelper.insertUser(name, password);
-            if (result != -1) {
-                Toast.makeText(this, "DB OK: user saevd", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "DB ERROR: user not saved", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            boolean valid = databaseHelper.checkUser(name, password);
-            if (valid) {
-                Toast.makeText(this, "DB OK: user already exists", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "DB ERROR: data not valid", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 }

@@ -45,6 +45,8 @@ public class ArtistGenreActivity extends AppCompatActivity {
         Button deleteGenreButton = findViewById(R.id.deleteGenreButton);
         Button songsButton = findViewById(R.id.songsButton);
         Button playlistsButton = findViewById(R.id.playlistsButton);
+        Button searchButton = findViewById(R.id.searchButton);
+        Button exitButton = findViewById(R.id.exitButton);
 
         addArtistButton.setOnClickListener(v -> addArtist());
         updateArtistButton.setOnClickListener(v -> updateArtist());
@@ -58,6 +60,12 @@ public class ArtistGenreActivity extends AppCompatActivity {
             intent.putExtra("user_name", getIntent().getStringExtra("user_name"));
             startActivity(intent);
         });
+        searchButton.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SearchActivity.class);
+            intent.putExtra("user_name", getIntent().getStringExtra("user_name"));
+            startActivity(intent);
+        });
+        exitButton.setOnClickListener(v -> finishAffinity());
 
         artistListView.setOnItemClickListener((parent, view, position, id) -> {
             selectedArtistId = (int) id;

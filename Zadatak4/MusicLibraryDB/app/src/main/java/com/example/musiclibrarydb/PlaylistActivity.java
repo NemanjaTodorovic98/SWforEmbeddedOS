@@ -47,6 +47,8 @@ public class PlaylistActivity extends AppCompatActivity {
 
         playlistListView.setOnItemClickListener((parent, view, position, id) -> {
             selectedPlaylistId = (int) id;
+            String value = (String) parent.getItemAtPosition(position);
+            playlistNameInput.setText(value.substring(value.indexOf(": ") + 2));
             loadPlaylistSongs();
             Toast.makeText(this, "Plejlista izabrana", Toast.LENGTH_SHORT).show();
         });
@@ -92,9 +94,14 @@ public class PlaylistActivity extends AppCompatActivity {
             Toast.makeText(this, "Izaberite plejlistu i pesmu", Toast.LENGTH_SHORT).show();
             return;
         }
-        databaseHelper.addSongToPlaylist(selectedPlaylistId, songIds.get(songSpinner.getSelectedItemPosition()));
+        long result = databaseHelper.addSongToPlaylist(
+                selectedPlaylistId, songIds.get(songSpinner.getSelectedItemPosition()));
         loadPlaylistSongs();
-        Toast.makeText(this, "Pesma dodata u plejlistu", Toast.LENGTH_SHORT).show();
+        if (result == -1) {
+            Toast.makeText(this, "Pesma je vec u plejlisti", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Pesma dodata u plejlistu", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void removeSong() {

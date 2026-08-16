@@ -45,6 +45,10 @@ public class SongActivity extends AppCompatActivity {
 
         songListView.setOnItemClickListener((parent, view, position, id) -> {
             selectedSongId = (int) id;
+            String value = (String) parent.getItemAtPosition(position);
+            int titleStart = value.indexOf(": ") + 2;
+            int titleEnd = value.indexOf(" - ", titleStart);
+            titleInput.setText(value.substring(titleStart, titleEnd));
             Toast.makeText(this, "Pesma izabrana za brisanje ili izmenu", Toast.LENGTH_SHORT).show();
         });
 

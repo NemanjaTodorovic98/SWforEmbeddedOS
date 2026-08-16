@@ -201,6 +201,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.query(TABLE_GENRES, null, null, null, null, null, COLUMN_NAME + " ASC");
     }
 
+    public Cursor searchArtists(String text) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_ARTISTS, null, COLUMN_NAME + " LIKE ?",
+                new String[]{"%" + text + "%"}, null, null, COLUMN_NAME + " ASC");
+    }
+
+    public Cursor searchGenres(String text) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_GENRES, null, COLUMN_NAME + " LIKE ?",
+                new String[]{"%" + text + "%"}, null, null, COLUMN_NAME + " ASC");
+    }
+
     public long insertSong(String title, int artistId, int genreId) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -226,8 +238,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + "INNER JOIN genres ON songs.genre_id = genres.id ORDER BY songs.name ASC", null);
     }
 
+    public Cursor searchSongs(String text) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String pattern = "%" + text + "%";
+        return db.rawQuery("SELECT songs.id, songs.name, artists.name AS artist_name, genres.name AS genre_name "
+                + "FROM songs INNER JOIN artists ON songs.artist_id = artists.id "
+                + "INNER JOIN genres ON songs.genre_id = genres.id "
+                + "WHERE songs.name LIKE ? OR artists.name LIKE ? OR genres.name LIKE ? "
+                + "ORDER BY songs.name ASC", new String[]{pattern, pattern, pattern});
+    }
+
     public int deleteSong(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_PLAYLIST_SONGS, COLUMN_SONG_ID + " = ?", new String[]{String.valueOf(id)});
         return db.delete(TABLE_SONGS, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
     }
 
@@ -284,6 +307,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.query(TABLE_PLAYLISTS, null, COLUMN_USER_ID + " = ?",
                 new String[]{String.valueOf(userId)}, null, null, COLUMN_NAME + " ASC");
+    }
+
+    public Cursor searchPlaylistsForUser(String text, int userId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_PLAYLISTS, null,
+                COLUMN_USER_ID + " = ? AND " + COLUMN_NAME + " LIKE ?",
+                new String[]{String.valueOf(userId), "%" + text + "%"},
+                null, null, COLUMN_NAME + " ASC");
     }
 
     public long addSongToPlaylist(int playlistId, int songId) {

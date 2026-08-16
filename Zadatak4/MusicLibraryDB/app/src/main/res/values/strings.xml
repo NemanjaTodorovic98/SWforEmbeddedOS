@@ -9,4 +9,11 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
     <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</string>
+
+    <string-array name="search_types">
+        <item>Pesme</item>
+        <item>Umetnici</item>
+        <item>Zanrovi</item>
+        <item>Plej liste</item>
+    </string-array>
 </resources>
