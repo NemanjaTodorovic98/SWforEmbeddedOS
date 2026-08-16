@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Plejliste"
+        android:textSize="26sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/backFromPlaylistButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Nazad" />
+
+    <EditText
+        android:id="@+id/playlistNameInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Naziv plejliste" />
+
+    <Button
+        android:id="@+id/savePlaylistButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sacuvaj plejlistu" />
+
+    <Button
+        android:id="@+id/deletePlaylistButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Obrisi izabranu plejlistu" />
+
+    <ListView
+        android:id="@+id/playlistListView"
+        android:layout_width="match_parent"
+        android:layout_height="120dp" />
+
+    <Spinner
+        android:id="@+id/playlistSongSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/addSongToPlaylistButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dodaj pesmu u plejlistu" />
+
+    <Button
+        android:id="@+id/removeSongFromPlaylistButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ukloni pesmu iz plejliste" />
+
+    <ListView
+        android:id="@+id/playlistSongsListView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

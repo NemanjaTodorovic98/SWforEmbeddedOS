@@ -85,4 +85,10 @@
         android:layout_height="wrap_content"
         android:text="Menazdment pesmama" />
 
+        <Button
+        android:id="@+id/playlistsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Plejliste" />
+
     </LinearLayout>

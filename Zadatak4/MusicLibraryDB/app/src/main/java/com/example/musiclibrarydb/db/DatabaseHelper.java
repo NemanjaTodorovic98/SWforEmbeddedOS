@@ -10,18 +10,23 @@ import androidx.annotation.Nullable;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "music_library.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     public static final String TABLE_USERS = "users";
     public static final String TABLE_ARTISTS = "artists";
     public static final String TABLE_GENRES = "genres";
     public static final String TABLE_SONGS = "songs";
+    public static final String TABLE_PLAYLISTS = "playlists";
+    public static final String TABLE_PLAYLIST_SONGS = "playlist_songs";
 
     public static final String COLUMN_ID = "id";
     public static final String COLUMN_NAME = "name";
     public static final String COLUMN_PASSWORD = "password";
     public static final String COLUMN_ARTIST_ID = "artist_id";
     public static final String COLUMN_GENRE_ID = "genre_id";
+    public static final String COLUMN_USER_ID = "user_id";
+    public static final String COLUMN_PLAYLIST_ID = "playlist_id";
+    public static final String COLUMN_SONG_ID = "song_id";
 
     public DatabaseHelper(@Nullable Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -58,6 +63,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(createArtistsTable);
         db.execSQL(createGenresTable);
         db.execSQL(createSongsTable);
+        createPlaylistTables(db);
     }
 
     @Override
@@ -72,6 +78,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + "FOREIGN KEY (" + COLUMN_GENRE_ID + ") REFERENCES " + TABLE_GENRES + "(" + COLUMN_ID + ")"
                 + ")");
         }
+        if (oldVersion < 3) {
+            createPlaylistTables(db);
+        }
+    }
+
+    private void createPlaylistTables(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE " + TABLE_PLAYLISTS + " ("
+                + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + COLUMN_NAME + " TEXT NOT NULL, "
+                + COLUMN_USER_ID + " INTEGER NOT NULL, "
+                + "FOREIGN KEY (" + COLUMN_USER_ID + ") REFERENCES " + TABLE_USERS + "(" + COLUMN_ID + ")"
+                + ")");
+        db.execSQL("CREATE TABLE " + TABLE_PLAYLIST_SONGS + " ("
+                + COLUMN_PLAYLIST_ID + " INTEGER NOT NULL, "
+                + COLUMN_SONG_ID + " INTEGER NOT NULL, "
+                + "PRIMARY KEY (" + COLUMN_PLAYLIST_ID + ", " + COLUMN_SONG_ID + "), "
+                + "FOREIGN KEY (" + COLUMN_PLAYLIST_ID + ") REFERENCES " + TABLE_PLAYLISTS + "(" + COLUMN_ID + "), "
+                + "FOREIGN KEY (" + COLUMN_SONG_ID + ") REFERENCES " + TABLE_SONGS + "(" + COLUMN_ID + ")"
+                + ")");
     }
 
     public long insertUser(String name, String password) {
@@ -127,6 +152,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
 
         return checkUser(name, password);
+    }
+
+    public int getUserId(String name) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(TABLE_USERS, new String[]{COLUMN_ID}, COLUMN_NAME + " = ?",
+                new String[]{name}, null, null, null);
+        int id = cursor.moveToFirst() ? cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)) : -1;
+        cursor.close();
+        return id;
     }
 
     public long insertArtist(String name) {
@@ -219,6 +253,62 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             return -1;
         }
         return db.delete(TABLE_GENRES, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
+    }
+
+    public long insertPlaylist(String name, int userId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NAME, name);
+        values.put(COLUMN_USER_ID, userId);
+        return db.insert(TABLE_PLAYLISTS, null, values);
+    }
+
+    public int updatePlaylist(int id, String name, int userId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NAME, name);
+        return db.update(TABLE_PLAYLISTS, values,
+                COLUMN_ID + " = ? AND " + COLUMN_USER_ID + " = ?",
+                new String[]{String.valueOf(id), String.valueOf(userId)});
+    }
+
+    public int deletePlaylist(int id, int userId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_PLAYLIST_SONGS, COLUMN_PLAYLIST_ID + " = ?", new String[]{String.valueOf(id)});
+        return db.delete(TABLE_PLAYLISTS,
+                COLUMN_ID + " = ? AND " + COLUMN_USER_ID + " = ?",
+                new String[]{String.valueOf(id), String.valueOf(userId)});
+    }
+
+    public Cursor getPlaylistsForUser(int userId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_PLAYLISTS, null, COLUMN_USER_ID + " = ?",
+                new String[]{String.valueOf(userId)}, null, null, COLUMN_NAME + " ASC");
+    }
+
+    public long addSongToPlaylist(int playlistId, int songId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_PLAYLIST_ID, playlistId);
+        values.put(COLUMN_SONG_ID, songId);
+        return db.insert(TABLE_PLAYLIST_SONGS, null, values);
+    }
+
+    public int removeSongFromPlaylist(int playlistId, int songId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        return db.delete(TABLE_PLAYLIST_SONGS,
+                COLUMN_PLAYLIST_ID + " = ? AND " + COLUMN_SONG_ID + " = ?",
+                new String[]{String.valueOf(playlistId), String.valueOf(songId)});
+    }
+
+    public Cursor getSongsForPlaylist(int playlistId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT songs.id, songs.name, artists.name AS artist_name, genres.name AS genre_name "
+                + "FROM playlist_songs INNER JOIN songs ON playlist_songs.song_id = songs.id "
+                + "INNER JOIN artists ON songs.artist_id = artists.id "
+                + "INNER JOIN genres ON songs.genre_id = genres.id "
+                + "WHERE playlist_songs.playlist_id = ? ORDER BY songs.name ASC",
+                new String[]{String.valueOf(playlistId)});
     }
 }
 

@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
         startButton.setOnClickListener(v -> {
             testDatabase();
             Intent intent = new Intent(MainActivity.this, ArtistGenreActivity.class);
+            intent.putExtra("user_name", "admin");
             startActivity(intent);
         });
 
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
             if (loginOk) {
                 Toast.makeText(this, "Uspesna prijava: " + name, Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(MainActivity.this, ArtistGenreActivity.class);
+                intent.putExtra("user_name", name);
                 startActivity(intent);
             } else {
                 Toast.makeText(this, "Ne postoji korisnik ili je sifra pogresna", Toast.LENGTH_SHORT).show();

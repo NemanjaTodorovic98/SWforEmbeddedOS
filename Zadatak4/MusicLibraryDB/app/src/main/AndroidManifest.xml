@@ -32,6 +32,11 @@
             android:name=".SongActivity"
             android:exported="false"
             android:theme="@style/Theme.MusicLibraryDB" />
+
+        <activity
+            android:name=".PlaylistActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MusicLibraryDB" />
     </application>
 
 </manifest>
